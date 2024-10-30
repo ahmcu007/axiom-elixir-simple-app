@@ -1,6 +1,6 @@
 defmodule AxiomLogger do
   @moduledoc """
-  A Logger backend to send logs to Axiom.
+  A Logger backend to send structured JSON logs to Axiom.
   """
 
   use GenServer
@@ -17,49 +17,34 @@ defmodule AxiomLogger do
     {:ok, %{}}
   end
 
-  # Handles synchronous calls from Logger (e.g., configuration)
-  def handle_call({:configure, _options}, state) do
-    {:ok, :ok, state}
-  end
+  def handle_call({:configure, _options}, state), do: {:ok, :ok, state}
+  def handle_call(:flush, state), do: {:ok, :ok, state}
 
-  def handle_call(:flush, state) do
-    {:ok, :ok, state}
-  end
-
-  # Handles log events
-  def handle_event({level, _gl, {Logger, msg, _timestamp, metadata}}, state)
+  def handle_event({level, _gl, {Logger, msg, timestamp, metadata}}, state)
       when level in [:info, :error, :warn, :debug] do
-    producer_id = Keyword.get(metadata, :producer)
-
-    IO.puts(producer_id)
-
     log_entry = %{
       level: to_string(level),
       message: to_string(msg),
-      producer_id: producer_id
+      timestamp: format_timestamp(timestamp),
+      metadata: Map.new(metadata, fn {k, v} -> {k, inspect(v)} end)
     }
 
     send_log_to_axiom(log_entry)
     {:ok, state}
   end
 
-  def handle_event(:flush, state) do
-    {:ok, state}
-  end
+  def handle_event(:flush, state), do: {:ok, state}
+  def handle_event(_event, state), do: {:ok, state}
 
-  # Handles any other events
-  def handle_event(_event, state) do
-    {:ok, state}
-  end
+  # Updated handle_info to safely ignore Logger.Backends.Config messages
+  def handle_info({Logger.Backends.Config, :update_counter}, state), do: {:ok, state}
+  def handle_info(_msg, state), do: {:ok, state}
 
-  # Handles unexpected messages
-  def handle_info(_msg, state) do
-    {:ok, state}
-  end
+  def terminate(_reason, _state), do: :ok
 
-  # Cleans up when the backend is terminated
-  def terminate(_reason, _state) do
-    :ok
+  defp format_timestamp({date, {hour, minute, second, _}}) do
+    NaiveDateTime.from_erl!({date, {hour, minute, second}})
+    |> NaiveDateTime.to_iso8601()
   end
 
   defp send_log_to_axiom(log_entry) do
@@ -71,16 +56,9 @@ defmodule AxiomLogger do
     body = JSON.encode!([log_entry])
 
     case Req.post(@api_endpoint, headers: headers, body: body) do
-      {:ok, res} ->
-        case res.status do
-          200 -> IO.puts("Log sent to Axiom successfully")
-          400 -> Logger.error("Bad request: #{inspect(res.body)}")
-          403 -> Logger.error("Forbidden: #{inspect(res.body)}")
-          _ -> Logger.error("Error sending log to Axiom: #{inspect(res)}")
-        end
-
-      {:error, error} ->
-        Logger.error("Error sending log to Axiom: #{inspect(error)}")
+      {:ok, res} when res.status == 200 -> IO.puts("Log sent to Axiom successfully")
+      {:ok, res} -> Logger.error("Failed with status #{res.status}: #{inspect(res.body)}")
+      {:error, error} -> Logger.error("Error sending log to Axiom: #{inspect(error)}")
     end
   end
 end

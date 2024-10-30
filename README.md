@@ -1,21 +1,28 @@
-# AxiomLogger
+# AxiomLogger Elixir Application
 
-**TODO: Add description**
+AxiomLogger is an Elixir application that integrates with [Axiom](https://axiom.co/) to provide structured JSON logging for better observability. It consists of:
 
-## Installation
+### Features:
+- **Elixir GenServer Logger Backend**: Sends logs directly to Axiom.
+- **Structured JSON Logs**: Formats logs as JSON for easy parsing.
+- **Customizable Metadata**: Includes dynamic fields such as producer IDs and timestamps.
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `axiom_logger` to your list of dependencies in `mix.exs`:
+### Setup:
+1. **Clone** and **Install Dependencies**:
+   ```bash
+   git clone <repo-url>
+   cd axiom_logger
+   mix deps.get
+   ```
 
-```elixir
-def deps do
-  [
-    {:axiom_logger, "~> 0.1.0"}
-  ]
-end
-```
+2. **Configure Axiom API Key**:
+   Set `AXIOM_API_TOKEN` in your environment.
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/axiom_logger>.
+3. **Run Application**:
+   ```bash
+   iex -S mix
+   ```
 
+### Usage:
+- **Start Logging**: Logs are automatically sent to Axiom, formatted as JSON.
+- **Monitor Logs**: Use Axiom’s dashboard for insights and queries.
